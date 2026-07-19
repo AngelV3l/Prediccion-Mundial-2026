@@ -1,0 +1,7 @@
+# Normalise line endings: text files use LF in the repository.
+* text=auto eol=lf
+
+# Treat these as binary (no EOL or diff munging).
+*.png binary
+*.csv text eol=lf
+*.ipynb text eol=lf
