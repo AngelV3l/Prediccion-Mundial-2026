@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-pytest-informational)
+[![Tests](https://github.com/AngelV3l/Prediccion-Mundial-2026/actions/workflows/tests.yml/badge.svg)](https://github.com/AngelV3l/Prediccion-Mundial-2026/actions/workflows/tests.yml)
 
 A statistical predictor for the 2026 FIFA World Cup. Each team is given an
 attack and a defence rating estimated jointly from a century of World Cup
