@@ -14,7 +14,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from worldcup import config, simulation
+from worldcup import config, evaluation, simulation
 from worldcup.model import DixonColesModel
 
 STAGE_COLUMNS = [
@@ -35,7 +35,11 @@ SURFACE = "#fcfcfb"
 
 
 def back_test(probs: pd.DataFrame, knockout: pd.DataFrame) -> pd.DataFrame:
-    """Compare predicted stage probabilities with what actually happened in 2026."""
+    """Compare predicted stage probabilities with what actually happened in 2026.
+
+    Adds the base-rate ``reference`` forecast (share of the field reaching each
+    stage) so the model's Brier score has something to be compared with.
+    """
     actual = simulation.actual_reached_depths(knockout)
     records = []
     for _, row in probs.iterrows():
@@ -49,7 +53,28 @@ def back_test(probs: pd.DataFrame, knockout: pd.DataFrame) -> pd.DataFrame:
                     "actual": int(depth >= stage),
                 }
             )
-    return pd.DataFrame(records)
+    bt = pd.DataFrame(records)
+    bt["reference"] = evaluation.base_rate_probabilities(bt["stage"], n_teams=len(probs))
+    return bt
+
+
+def back_test_summary(bt: pd.DataFrame) -> pd.DataFrame:
+    """Brier score of the model and the reference, and the skill score, per stage and overall."""
+    rows = []
+    groups = [(stage, bt[bt["stage"] == stage]) for stage, _ in STAGE_COLUMNS] + [("all", bt)]
+    for stage, d in groups:
+        rows.append(
+            {
+                "stage": stage,
+                "n": len(d),
+                "brier_model": evaluation.brier_score(d["predicted"], d["actual"]),
+                "brier_reference": evaluation.brier_score(d["reference"], d["actual"]),
+                "skill_score": evaluation.brier_skill_score(
+                    d["predicted"], d["actual"], d["reference"]
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _style_axes(ax):
@@ -111,41 +136,40 @@ def figure_strengths(model: DixonColesModel, groups: pd.DataFrame, path: Path) -
     plt.close(fig)
 
 
-def figure_backtest(bt: pd.DataFrame, path: Path, n_bins: int = 5) -> float:
-    """Reliability plot pooling all (team, stage) predictions; returns Brier score."""
+def figure_backtest(
+    bt: pd.DataFrame, summary: pd.DataFrame, ci: tuple[float, float], path: Path, n_bins: int = 5
+) -> None:
+    """Reliability plot pooling all (team, stage) predictions, with bin sizes and skill score."""
     import matplotlib.pyplot as plt
 
-    p = bt["predicted"].to_numpy()
-    a = bt["actual"].to_numpy()
-    brier = float(np.mean((p - a) ** 2))
+    table = evaluation.calibration_table(bt["predicted"], bt["actual"], n_bins=n_bins)
+    overall = summary.set_index("stage").loc["all"]
 
-    edges = np.linspace(0, 1, n_bins + 1)
-    xs, ys = [], []
-    for lo, hi in zip(edges[:-1], edges[1:]):
-        mask = (p >= lo) & (p < hi if hi < 1 else p <= hi)
-        if mask.sum():
-            xs.append(p[mask].mean())
-            ys.append(a[mask].mean())
-
-    fig, ax = plt.subplots(figsize=(6.5, 6.5), dpi=130)
+    fig, ax = plt.subplots(figsize=(6.5, 6.9), dpi=130)
     fig.patch.set_facecolor(SURFACE)
     ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1, linestyle=(0, (4, 4)), label="Perfect calibration")
-    ax.plot(xs, ys, marker="o", color=BLUE, linewidth=2, markersize=8,
-            markeredgecolor=SURFACE, label="Model")
+    ax.plot(table["mean_predicted"], table["observed"], marker="o", color=BLUE, linewidth=2,
+            markersize=8, markeredgecolor=SURFACE, label="Model")
+    for x, y, n in zip(table["mean_predicted"], table["observed"], table["n"]):
+        ax.annotate(f"n={n}", (x, y), xytext=(8, -12), textcoords="offset points",
+                    fontsize=9, color=INK)
     _style_axes(ax)
     ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.08)
     ax.set_xlabel("Predicted probability of reaching a stage", color=MUTED, fontsize=10)
     ax.set_ylabel("Observed frequency (2026)", color=MUTED, fontsize=10)
+    fig.suptitle("Back-test calibration", x=0.08, ha="left", color=INK, fontsize=14,
+                 fontweight="bold")
     ax.set_title(
-        f"Back-test calibration  (Brier = {brier:.3f})",
-        color=INK, fontsize=14, fontweight="bold", loc="left",
+        f"Brier {overall['brier_model']:.3f} vs {overall['brier_reference']:.3f} for the "
+        f"base-rate reference\nSkill score {overall['skill_score']:+.2f} "
+        f"(95% team bootstrap {ci[0]:.2f} to {ci[1]:.2f}), n = {int(overall['n'])} predictions",
+        color=MUTED, fontsize=9.5, loc="left",
     )
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK)
+    ax.legend(frameon=False, fontsize=9, labelcolor=INK, loc="upper left")
     fig.tight_layout()
     fig.savefig(path, facecolor=SURFACE, bbox_inches="tight")
     plt.close(fig)
-    return brier
 
 
 def main() -> None:
@@ -172,9 +196,17 @@ def main() -> None:
     config.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     figure_title_odds(probs, config.FIGURES_DIR / "title_odds.png")
     figure_strengths(model, groups, config.FIGURES_DIR / "team_strengths.png")
-    brier = figure_backtest(back_test(probs, knockout), config.FIGURES_DIR / "backtest_calibration.png")
-    print(f"\nBack-test Brier score (reaching each stage): {brier:.3f}")
-    print(f"Figures written to {config.FIGURES_DIR}")
+    bt = back_test(probs, knockout)
+    summary = back_test_summary(bt)
+    ci = evaluation.bootstrap_skill_score(bt)
+    figure_backtest(bt, summary, ci, config.FIGURES_DIR / "backtest_calibration.png")
+
+    print("\nBack-test, model vs base-rate reference (Brier score, lower is better):")
+    print(summary.round(3).to_string(index=False))
+    print(f"Skill score 95% team-bootstrap interval: {ci[0]:.3f} to {ci[1]:.3f}")
+    print("\nCalibration bins:")
+    print(evaluation.calibration_table(bt["predicted"], bt["actual"]).round(3).to_string(index=False))
+    print(f"\nFigures written to {config.FIGURES_DIR}")
 
 
 if __name__ == "__main__":
