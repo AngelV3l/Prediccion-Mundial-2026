@@ -5,3 +5,7 @@
 *.png binary
 *.csv text eol=lf
 *.ipynb text eol=lf
+
+# Keep the showcase notebook out of the language stats: the project is the
+# Python package in src/, the notebook is a narrative walk-through.
+*.ipynb linguist-documentation
