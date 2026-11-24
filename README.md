@@ -10,9 +10,10 @@ results with a **time-weighted, ridge-regularised Dixon-Coles goal model**, and
 the 48-team tournament is played out thousands of times by **Monte Carlo
 simulation** to turn those ratings into probabilities.
 
-**Key result:** back-tested against the real 2026 tournament, the
-pre-tournament probabilities are well calibrated, with a **Brier score of 0.125**
-over every *(team, stage)* prediction.
+**Key result:** back-tested against the real 2026 tournament, the model scores a
+**Brier of 0.125** over 240 *(team, stage)* predictions, against 0.140 for a
+base-rate reference that only knows the tournament format: a **Brier skill score
+of +0.11** (95% team bootstrap 0.04 to 0.17).
 
 <p align="center">
   <img src="reports/figures/backtest_calibration.png" width="460" alt="Back-test calibration against the real 2026 results">
@@ -56,11 +57,33 @@ naïve fit produces.
 ## Back-test
 
 The 2026 tournament has already been played, so the predictions can be checked
-against reality. Pooling every *(team, stage)* prediction (the probability each
-side reaches the round of 32, 16, quarters, semis and final), the model is
-**well calibrated** (points sit close to the diagonal, Brier = 0.125). The model's
-pre-tournament favourite was Germany; the real 2026 final was contested by Spain
-and Argentina, both among the model's top nine. This is a reminder that a single
+against reality. Each of the 48 teams gets five predictions (the probability of
+reaching the round of 32, 16, quarters, semis and final), 240 in total.
+
+A Brier score alone says little, so it is compared with a **base-rate
+reference** that knows the format but nothing about the teams: every side gets
+the share of the field that reaches each stage (32/48 for the round of 32, 16/48
+for the round of 16, and so on). The **Brier skill score**
+`1 − BS_model / BS_reference` is the share of the reference's error the model
+removes (0 = no better than the format, 1 = perfect).
+
+| Stage | n | Brier, model | Brier, reference | Skill score |
+| --- | ---: | ---: | ---: | ---: |
+| Round of 32 | 48 | 0.196 | 0.222 | +0.12 |
+| Round of 16 | 48 | 0.198 | 0.222 | +0.11 |
+| Quarter-final | 48 | 0.125 | 0.139 | +0.10 |
+| Semi-final | 48 | 0.068 | 0.076 | +0.11 |
+| Final | 48 | 0.038 | 0.040 | +0.04 |
+| **All** | **240** | **0.125** | **0.140** | **+0.11** |
+
+The gain is modest but consistent across stages, and a bootstrap that resamples
+whole teams puts the overall skill score between 0.04 and 0.17 (approximate,
+since teams in one tournament are not fully independent). In the calibration
+plot the points sit close to the diagonal where there is data; the top bin holds
+only 6 predictions, so its 100% hit rate says little.
+
+The model's pre-tournament favourite was Germany; the real 2026 final was
+contested by Spain and Argentina, both among the model's top nine. A single
 tournament is high-variance, which is exactly why the output is a probability
 distribution rather than a single bracket.
 
@@ -73,6 +96,7 @@ src/worldcup/        Reusable package
   cleaning.py          Score parsing, team-name normalisation, successor states
   model.py             Dixon-Coles model + maximum-likelihood fit
   simulation.py        Monte Carlo tournament simulation and back-test helpers
+  evaluation.py        Brier score, base-rate reference, skill score, calibration bins
 scripts/             Pipeline entry points (01 scrape → 02 clean → 03 fit → 04 simulate)
 notebooks/           worldcup_2026_showcase.ipynb, the narrative walk-through
 tests/               pytest suite
@@ -115,7 +139,8 @@ Training data ends in 2018 (recent World Cup articles split match results across
 sub-pages with inconsistent markup); squad, injury and form information is
 ignored; and all venues are treated as neutral. Blending in continental
 qualifiers and using the FIFA ranking as a prior for debutants are natural next
-steps.
+steps. The pre-tournament FIFA ranking would also be a stronger back-test
+reference than the base rate used here.
 
 ## License
 
@@ -158,8 +183,13 @@ estándar en la analítica de fútbol:
 ## Validación (backtest)
 
 Como el Mundial 2026 ya se jugó, las predicciones se contrastan con la realidad.
-Agrupando cada predicción *(equipo, ronda)*, el modelo está **bien calibrado**
-(Brier = 0,125). Su favorito previo era Alemania; la final real la disputaron
+Sobre las 240 predicciones *(equipo, ronda)*, el modelo obtiene un **Brier de
+0,125**, frente a 0,140 de una referencia que solo conoce el formato (cada
+selección recibe la proporción de equipos que alcanza cada ronda: 32/48, 16/48,
+etc.). Eso da un **Brier skill score de +0,11** (bootstrap por equipos al 95 %:
+0,04 a 0,17), una mejora modesta pero consistente en todas las rondas. El tramo
+superior del gráfico de calibración solo tiene 6 predicciones, así que su 100 %
+de acierto dice poco. Su favorito previo era Alemania; la final real la disputaron
 España y Argentina, ambas entre las nueve primeras del modelo. Es un recordatorio
 de que un solo torneo tiene mucha varianza, y por eso la salida es una
 distribución de probabilidad y no un único cuadro.
@@ -185,7 +215,9 @@ Los datos de entrenamiento llegan hasta 2018 (las páginas recientes reparten lo
 partidos en subpáginas con marcado inconsistente); no se usa información de
 plantillas, lesiones ni estado de forma, y todas las sedes se tratan como
 neutrales. Incorporar las clasificatorias continentales y usar el ranking FIFA
-como *prior* para las debutantes son los siguientes pasos naturales.
+como *prior* para las debutantes son los siguientes pasos naturales. El ranking
+FIFA previo al torneo también sería una referencia más exigente para el backtest
+que la tasa base usada aquí.
 
 ## Licencia
 
