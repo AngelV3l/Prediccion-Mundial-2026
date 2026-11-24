@@ -10,11 +10,15 @@ results with a **time-weighted, ridge-regularised Dixon-Coles goal model**, and
 the 48-team tournament is played out thousands of times by **Monte Carlo
 simulation** to turn those ratings into probabilities.
 
-*(Español más abajo — [ir a la versión en español](#predictor-del-mundial-2026).)*
+**Key result:** back-tested against the real 2026 tournament, the
+pre-tournament probabilities are well calibrated, with a **Brier score of 0.125**
+over every *(team, stage)* prediction.
 
 <p align="center">
-  <img src="reports/figures/title_odds.png" width="620" alt="2026 World Cup title odds">
+  <img src="reports/figures/backtest_calibration.png" width="460" alt="Back-test calibration against the real 2026 results">
 </p>
+
+*(Español más abajo: [ir a la versión en español](#predictor-del-mundial-2026).)*
 
 ## Why this model
 
@@ -35,7 +39,7 @@ analytics literature:
   an L2 penalty shrinks poorly-observed sides toward the average so minnows with
   one lucky result don't top the ratings.
 - **Joint maximum-likelihood fit** with `scipy.optimize` (attack ratings
-  constrained to sum to zero for identifiability) — no `statsmodels` dependency.
+  constrained to sum to zero for identifiability), with no `statsmodels` dependency.
 - **Monte Carlo bracket.** 12 groups of 4, FIFA tie-breakers, the 8 best
   third-placed teams, and the official round-of-32 bracket template played
   through to the final, repeated 10,000 times.
@@ -45,18 +49,18 @@ the Netherlands, Belgium, Argentina, …) rather than the small-sample noise a
 naïve fit produces.
 
 <p align="center">
-  <img src="reports/figures/team_strengths.png" width="480" alt="Team strength scatter">
-  <img src="reports/figures/backtest_calibration.png" width="380" alt="Back-test calibration">
+  <img src="reports/figures/title_odds.png" width="480" alt="2026 World Cup title odds">
+  <img src="reports/figures/team_strengths.png" width="380" alt="Team strength scatter">
 </p>
 
 ## Back-test
 
 The 2026 tournament has already been played, so the predictions can be checked
-against reality. Pooling every *(team, stage)* prediction — the probability each
-side reaches the round of 32, 16, quarters, semis and final — the model is
-**well calibrated** (points sit close to the diagonal, Brier ≈ 0.12). The model's
+against reality. Pooling every *(team, stage)* prediction (the probability each
+side reaches the round of 32, 16, quarters, semis and final), the model is
+**well calibrated** (points sit close to the diagonal, Brier = 0.125). The model's
 pre-tournament favourite was Germany; the real 2026 final was contested by Spain
-and Argentina, both among the model's top nine — a reminder that a single
+and Argentina, both among the model's top nine. This is a reminder that a single
 tournament is high-variance, which is exactly why the output is a probability
 distribution rather than a single bracket.
 
@@ -70,7 +74,7 @@ src/worldcup/        Reusable package
   model.py             Dixon-Coles model + maximum-likelihood fit
   simulation.py        Monte Carlo tournament simulation and back-test helpers
 scripts/             Pipeline entry points (01 scrape → 02 clean → 03 fit → 04 simulate)
-notebooks/           worldcup_2026_showcase.ipynb — the narrative walk-through
+notebooks/           worldcup_2026_showcase.ipynb, the narrative walk-through
 tests/               pytest suite
 data/                raw/ (versioned snapshots) and processed/ (regenerated)
 reports/figures/     Generated charts
@@ -100,7 +104,7 @@ The historical training set (1930–2018) ships as a versioned snapshot in
   Czechoslovakia's into the Czech Republic, and Zaire's into DR Congo, so a
   modern side inherits its full World Cup history.
 - **Debutants** (Cape Verde, Curaçao, Jordan, Uzbekistan, …) have no history, so
-  they take league-average ratings — competitive but not favoured — instead of
+  they take league-average ratings (competitive but not favoured) instead of
   being unbeatable-or-hopeless.
 - **Neutral venues.** Knockout ties are decided by a strength-weighted coin flip
   standing in for a penalty shootout.
@@ -115,7 +119,7 @@ steps.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
 
 ---
 
@@ -146,7 +150,7 @@ estándar en la analítica de fútbol:
   dispares; una penalización L2 encoge hacia la media a los poco observados,
   para que una "cenicienta" con un resultado afortunado no lidere el ranking.
 - **Ajuste conjunto por máxima verosimilitud** con `scipy.optimize` (ataques con
-  suma cero por identificabilidad) — sin depender de `statsmodels`.
+  suma cero por identificabilidad), sin depender de `statsmodels`.
 - **Bracket Monte Carlo.** 12 grupos de 4, desempates FIFA, los 8 mejores
   terceros y la plantilla oficial de dieciseisavos hasta la final, repetido
   10.000 veces.
@@ -155,8 +159,8 @@ estándar en la analítica de fútbol:
 
 Como el Mundial 2026 ya se jugó, las predicciones se contrastan con la realidad.
 Agrupando cada predicción *(equipo, ronda)*, el modelo está **bien calibrado**
-(Brier ≈ 0,12). Su favorito previo era Alemania; la final real la disputaron
-España y Argentina, ambas entre las nueve primeras del modelo — un recordatorio
+(Brier = 0,125). Su favorito previo era Alemania; la final real la disputaron
+España y Argentina, ambas entre las nueve primeras del modelo. Es un recordatorio
 de que un solo torneo tiene mucha varianza, y por eso la salida es una
 distribución de probabilidad y no un único cuadro.
 
@@ -185,4 +189,4 @@ como *prior* para las debutantes son los siguientes pasos naturales.
 
 ## Licencia
 
-MIT — ver [LICENSE](LICENSE).
+MIT, ver [LICENSE](LICENSE).
